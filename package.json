@@ -1,0 +1,28 @@
+{
+  "name": "vite-project",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "concurrently \"cd backend && npm start\" \"cd frontend && npm run dev\" \"cd ml && python app.py\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "process": "^0.11.10"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "autoprefixer": "^10.4.20",
+    "axios": "^1.7.9",
+    "cheerio": "^1.0.0",
+    "dotenv": "^16.4.7",
+    "postcss": "^8.5.1",
+    "react-textarea-autosize": "^8.5.7",
+    "tailwind-scrollbar-hide": "^2.0.0",
+    "tailwindcss": "^3.4.17"
+  }
+}
