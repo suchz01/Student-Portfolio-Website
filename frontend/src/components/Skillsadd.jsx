@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { X, ChevronRight, Scan } from 'lucide-react';
+import { X, ChevronRight, Scan, Check, AlertCircle, Search } from 'lucide-react';
 import Papa from 'papaparse';
 import { useNavigate } from 'react-router-dom';
 import debounce from 'lodash/debounce';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 
 function SkillsAdd() {
   // Fetch profile from localStorage or navigate to login page if missing
@@ -216,15 +217,15 @@ function SkillsAdd() {
     }
   };
   
-
-
   const handleSelect = async (string) => {
     if (!selectedStrings.includes(string)) {
       const updatedSkills = [...selectedStrings, string];
       setSelectedStrings(updatedSkills);
       const data = await updateDatabase(updatedSkills);
       if (!data) {
-        console.error('Error updating skills and badges in the database.');
+        toast.error('Error updating skills and badges in the database.');
+      } else {
+        toast.success(`Skill "${string}" added`);
       }
     }
     setSearchTerm('');
@@ -232,136 +233,164 @@ function SkillsAdd() {
     setIsFocused(false);
   };
 
- const handleDeselect = async (string) => {
-  const updatedSkills = selectedStrings.filter((s) => s !== string);
-  setSelectedStrings(updatedSkills);
-  const data = await updateDatabase(updatedSkills, string);
-  if (!data) {
-    console.error('Error updating skills and badges in the database.');
-  }
-};
+  const handleDeselect = async (string) => {
+    const updatedSkills = selectedStrings.filter((s) => s !== string);
+    setSelectedStrings(updatedSkills);
+    const data = await updateDatabase(updatedSkills, string);
+    if (!data) {
+      toast.error('Error updating skills and badges in the database.');
+    } else {
+      toast.success(`Skill "${string}" removed`);
+    }
+  };
 
   const handleContinue = async () => {
     if (selectedStrings.length === 0) {
-      alert('Please select at least one skill');
+      toast.warning('Please select at least one skill');
       return;
     }
 
     const data = await updateDatabase(selectedStrings);
     if (data) {
+      toast.success('Skills updated successfully!');
       navigate('/Prediction', { state: { selectedSkills: selectedStrings } });
     }
   };
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#1e1a2a] p-8">
-        <div className="max-w-4xl mx-auto space-y-8 mt-60">
-          <div className="bg-[#29253b] p-8 border border-white/20 rounded-md">
-            <p className="text-white">{error}</p>
-          </div>
+      <div className="p-8 flex flex-col items-center justify-center min-h-[300px]">
+        <div className="bg-red-500/10 text-red-500 p-6 rounded-xl border border-red-500/20 max-w-md text-center">
+          <AlertCircle className="mx-auto mb-4" size={32} />
+          <p className="font-medium">{error}</p>
+          <button 
+            onClick={() => window.location.href = "/login"} 
+            className="mt-4 bg-primary/10 hover:bg-primary/20 text-primary px-4 py-2 rounded-md transition-colors"
+          >
+            Sign In
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#1e1a2a] p-8">
-      <div className="max-w-4xl mx-auto space-y-8 mt-60">
-        <motion.div
-          className="bg-[#29253b] backdrop-blur-lg rounded-md shadow-lg p-8 border border-white/20 transition-all duration-500 hover:shadow-[0_0_25px_rgba(255,255,255,0.3)] hover:border-white/30"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeInOut" }}
-        >
-          <h2 className="text-2xl font-semibold mb-8 text-white flex items-center">
-            <Scan className="mr-3 text-[#45f15c]" size={24} />
-            Enter Your Skills
-          </h2>
+    <div className="p-6 space-y-6">
+      {/* Search Bar */}
+      <div className="relative">
+        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-muted-foreground">
+          <Search size={18} />
+        </div>
+        <input
+          type="text"
+          placeholder="Search for skills... (e.g. React, Python, Machine Learning)"
+          value={searchTerm}
+          onChange={handleSearch}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setTimeout(() => setIsFocused(false), 200)}
+          onKeyDown={handleKeyDown}
+          className="w-full bg-background/50 text-foreground rounded-lg pl-10 pr-4 py-3 
+            border border-border focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500
+            transition-all duration-200"
+        />
+        {isLoading && (
+          <div className="absolute inset-y-0 right-3 flex items-center">
+            <div className="animate-spin h-5 w-5 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
+          </div>
+        )}
+        
+        {/* Dropdown List */}
+        {(searchTerm || isFocused) && filteredStrings.length > 0 && (
           <motion.div
-            className="relative mb-6"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4, ease: "easeInOut" }}
+            className="absolute z-10 w-full mt-2"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
           >
-            <input
-              type="text"
-              placeholder="Search skills..."
-              value={searchTerm}
-              onChange={handleSearch}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setTimeout(() => setIsFocused(false), 200)}
-              onKeyDown={handleKeyDown}
-              className="w-full bg-white/10 text-white rounded-md px-4 py-3 
-                border border-white/20 focus:outline-none focus:border-white/30
-                backdrop-blur-lg transition-all duration-300"
-            />
-            {(searchTerm || isFocused) && (
-              <motion.div
-                className="absolute z-10 w-full mt-2"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-              >
-                <ul ref={listRef} className="bg-[#29253b] backdrop-blur-lg rounded-md shadow-lg max-h-60 overflow-y-auto border border-white/20">
-                  {filteredStrings.slice(0, visibleCount).map((string, index) => (
-                    <motion.li
-                      key={index}
-                      onMouseDown={() => handleSelect(string)}
-                      className={`px-4 py-2 hover:bg-white/10 cursor-pointer transition-all duration-300 
-                        text-white/80 hover:text-white ${highlightedIndex === index ? 'bg-white/20' : ''}`}
-                      initial={{ opacity: 0, y: -5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2, ease: "easeInOut" }}
-                    >
-                      {string}
-                    </motion.li>
-                  ))}
-                </ul>
-              </motion.div>
-            )}
+            <ul 
+              ref={listRef} 
+              className="bg-card/95 backdrop-blur-md rounded-lg shadow-lg max-h-60 overflow-y-auto border border-border"
+            >
+              {filteredStrings.slice(0, visibleCount).map((string, index) => (
+                <motion.li
+                  key={index}
+                  onMouseDown={() => handleSelect(string)}
+                  className={`px-4 py-2.5 hover:bg-accent cursor-pointer transition-all duration-200 
+                    flex items-center justify-between ${highlightedIndex === index ? 'bg-accent' : ''}`}
+                >
+                  <span>{string}</span>
+                  <Check size={16} className="text-muted-foreground/50" />
+                </motion.li>
+              ))}
+            </ul>
           </motion.div>
-          <motion.div
-            className="flex flex-wrap gap-3 mb-8"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
-            {selectedStrings.map((string, index) => (
+        )}
+      </div>
+      
+      {/* Selected Skills */}
+      <div>
+        <div className="mb-2 text-sm text-muted-foreground flex items-center">
+          <span className="mr-2">Selected Skills</span>
+          <span className="bg-indigo-500/10 text-indigo-500 px-2 py-0.5 rounded-full text-xs font-medium">
+            {selectedStrings.length}
+          </span>
+        </div>
+        <motion.div
+          className="flex flex-wrap gap-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          {selectedStrings.length === 0 ? (
+            <p className="text-sm text-muted-foreground p-3">
+              No skills selected yet. Search and select skills above.
+            </p>
+          ) : (
+            selectedStrings.map((string, index) => (
               <motion.div
                 key={index}
-                className="bg-white/10 text-[#DEDEE3] px-4 py-2 rounded-full text-sm 
-                  hover:bg-white/20 transition-all duration-300 hover:scale-105
-                  flex items-center group"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-                onClick={() => handleDeselect(string)}
+                className="bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 px-3 py-1.5 rounded-full text-sm 
+                  flex items-center group hover:bg-indigo-500/20 transition-all duration-200"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.2 }}
+                whileHover={{ scale: 1.03 }}
               >
                 <span>{string}</span>
                 <button
-                  className="ml-2 hover:text-white transition-all duration-300"
+                  onClick={() => handleDeselect(string)}
+                  className="ml-2 text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-200 transition-colors"
                 >
-                  <X size={16} />
+                  <X size={14} />
                 </button>
               </motion.div>
-            ))}
-          </motion.div>
-          <motion.button
-            onClick={handleContinue}
-            className="w-full bg-white/10 hover:bg-white/20 text-white rounded-md py-3 px-6 
-              flex items-center justify-center space-x-2 transition-all duration-300 
-              border border-white/20 hover:border-white/30 hover:shadow-[0_0_15px_rgba(255,255,255,0.2)]"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-          >
-            <span>Continue</span>
-            <ChevronRight size={20} className="text-[#45f15c]" />
-          </motion.button>
+            ))
+          )}
         </motion.div>
+      </div>
+      
+      {/* Continue Button */}
+      <div className="flex justify-end">
+        <motion.button
+          onClick={handleContinue}
+          disabled={selectedStrings.length === 0 || isLoading}
+          className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700
+            text-white px-5 py-2 rounded-lg flex items-center gap-2 transition-all duration-300
+            shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          {isLoading ? (
+            <>
+              <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+              <span>Processing...</span>
+            </>
+          ) : (
+            <>
+              <span>Continue</span>
+              <ChevronRight size={18} />
+            </>
+          )}
+        </motion.button>
       </div>
     </div>
   );

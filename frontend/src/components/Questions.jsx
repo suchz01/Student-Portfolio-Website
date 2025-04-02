@@ -27,22 +27,48 @@ function Questions() {
         const prompt = `Generate 5 multiple choice questions on ${skill} along with the answer key in the end.`;
 
         // Make an API call to the generative AI model
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-        const result = await model.generateContent(prompt);
-
-      
-        const response = result.response;
-        const text = await response.text();
-        const questionsList = text.split("\n").filter((q) => q.trim() !== ""); 
-
-        setPromptResponses((prevResponses) => [
-          ...prevResponses,
-          { skill, questions: questionsList },
-        ]);
+        // Updated model name from gemini-pro to gemini-1.5-pro-001
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-001" });
+        
+        try {
+          const result = await model.generateContent(prompt);
+          const response = result.response;
+          const text = await response.text();
+          const questionsList = text.split("\n").filter((q) => q.trim() !== ""); 
+          setPromptResponses((prevResponses) => [
+            ...prevResponses,
+            { skill, questions: questionsList },
+          ]);
+        } catch (modelError) {
+          console.error(`Error generating content for ${skill}:`, modelError);
+          // Try fallback to another model if available
+          try {
+            console.log("Attempting fallback to alternative model...");
+            const fallbackModel = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
+            const fallbackResult = await fallbackModel.generateContent(prompt);
+            const fallbackResponse = fallbackResult.response;
+            const fallbackText = await fallbackResponse.text();
+            const fallbackQuestionsList = fallbackText.split("\n").filter((q) => q.trim() !== "");
+            
+            setPromptResponses((prevResponses) => [
+              ...prevResponses,
+              { skill, questions: fallbackQuestionsList },
+            ]);
+          } catch (fallbackError) {
+            console.error("Fallback model also failed:", fallbackError);
+            setPromptResponses((prevResponses) => [
+              ...prevResponses,
+              { 
+                skill, 
+                questions: ["Failed to generate questions for this skill. API error: " + modelError.message] 
+              },
+            ]);
+          }
+        }
       }
     } catch (error) {
       console.error("Something went wrong:", error);
-      setError("Something Went Wrong");
+      setError("Failed to fetch questions: " + error.message);
     } finally {
       setIsLoading(false);
     }

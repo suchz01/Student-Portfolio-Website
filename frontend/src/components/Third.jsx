@@ -1,135 +1,275 @@
-import React from 'react';
-import { Target, Scan, Award } from 'lucide-react';
+import PropTypes from 'prop-types';
+import { Code, Award, Medal, Target, Zap, Clock, CheckCircle, AlertCircle, Plus, ChevronRight, Calendar, Star } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./ui/dialog";
+
+// Restore the level calculation function
+const getNumericLevel = (level) => {
+  switch(level) {
+    case 'Beginner': return 1;
+    case 'Intermediate': return 2;
+    case 'Advanced': return 3;
+    case 'Expert': return 3; // Cap at 3
+    case 'easy': return 1;
+    case 'medium': return 2;
+    case 'hard': return 3;
+    default: return 0; // Test not given
+  }
+};
 
 function Third({ profileData }) {
-  const calculateMissingSkills = (requiredSkills, currentSkills) => {
-    if (!Array.isArray(requiredSkills) || !Array.isArray(currentSkills)) {
-      return [];
-    }
-    const lowerCaseCurrentSkills = currentSkills.map(skill => skill.toLowerCase());
-    return requiredSkills.filter(skill => !lowerCaseCurrentSkills.includes(skill.toLowerCase()));
+  const navigate = useNavigate();
+  const safeProfileData = profileData || {};
+  
+  // Check if sections have data
+  const hasGoals = safeProfileData.currentGoals && safeProfileData.currentGoals.length > 0;
+  const hasTestedSkills = safeProfileData.testedSkills && safeProfileData.testedSkills.length > 0;
+  const hasPlainSkills = safeProfileData.skills && safeProfileData.skills.length > 0;
+  const hasSkills = hasTestedSkills || hasPlainSkills;
+  
+  // Check if we need to display an empty state
+  const isEmpty = !hasGoals && !hasSkills;
+  
+  // Get combined skills from both arrays
+  const getAllSkills = () => {
+    const testedSkills = safeProfileData.testedSkills?.map(ts => ({
+      name: ts.skill,
+      level: getNumericLevel(ts.level),
+      description: `Tested on ${formatDate(ts.dateTested)} with a score of ${ts.score}/100`,
+      tested: true,
+      score: ts.score,
+      dateTested: ts.dateTested,
+      difficulty: ts.level
+    })) || [];
+    
+    const plainSkills = (safeProfileData.skills || []).filter(skill => {
+      // Check if this skill already exists in testedSkills (case-insensitive match)
+      return !testedSkills.some(ts => 
+        ts.name.trim().toLowerCase() === skill.trim().toLowerCase()
+      );
+    }).map(skill => ({
+      name: skill,
+      level: 0, // Level 0 for untested skills (no stars)
+      description: '',
+      tested: false
+    }));
+    
+    return [...testedSkills, ...plainSkills];
+  };
+  
+  // Function to calculate missing skills
+  const calculateMissingSkills = (goal) => {
+    if (!goal || !goal.requiredSkills) return [];
+    const goalSkills = goal.requiredSkills || [];
+    const userSkills = [...(safeProfileData.skills || []), 
+                          ...(safeProfileData.testedSkills?.map(ts => ts.skill) || [])];
+    return goalSkills.filter(skill => !userSkills.includes(skill));
   };
 
-  const formatDateToIndian = (date) => {
-    return new Date(date).toLocaleDateString('en-IN');
+  // Format date to readable format
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Date not specified';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      });
+    } catch {
+      return 'Invalid date';
+    }
   };
 
   return (
-    <div className='bg-[#29253b] rounded-lg shadow-lg p-6  '>
-      {/* Third Column: Goals & Skills */}
-      <div className="space-y-8">
-        {/* Current Goals Section */}
-        <div
-          className="bg-[#29253b] backdrop-blur-lg rounded-md shadow-lg p-8 border border-white/20 
-          transition-all duration-500 
-          hover:shadow-[0_0_25px_rgba(255,255,255,0.3)] 
-          hover:border-white/30"
-        >
-          <h3 className="text-xl font-semibold mb-6 flex items-center gap-3 text-white">
-            <Target className="mr-3 text-[#45f15c]" size={24} />
-            Current Goals
-          </h3>
-          <ul className="space-y-4">
-            {profileData.currentGoal && (
-              <li
-                className="bg-white/10 backdrop-blur-lg p-4 rounded-xl border border-white/20 hover:bg-white/20 transition-all duration-300 group"
-              >
-                <p className="text-white group-hover:text-[#DEDEE3] text-2xl transition-colors">{profileData.currentGoal.role}</p>
-                <p className="text-white mt-2">Missing Skills:</p>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {calculateMissingSkills(profileData.currentGoal.skill, profileData.skills).map((skill, index) => (
-                    <span
-                      key={index}
-                      className="bg-white/10 text-[#DEDEE3] px-3 py-1 rounded-full text-sm transition-all duration-300 hover:bg-white/20 hover:scale-105"
-                    >
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              </li>
-            )}
-          </ul>
-        </div>
-
-        {/* Skill Sets Section */}
-        <div
-          className="bg-[#29253b] backdrop-blur-lg rounded-md shadow-lg p-8 border border-white/20 
-          transition-all duration-500 
-          hover:shadow-[0_0_25px_rgba(255,255,255,0.3)] 
-          hover:border-white/30"
-        >
-          <h3 className="text-xl font-semibold flex items-center mb-6 text-white">
-            <Scan className="mr-3 text-[#45f15c]" size={24} />
-            Skill Sets
-          </h3>
-          <div className="flex flex-wrap gap-3">
-            {profileData.skills.map((skill, index) => (
-              <div key={index} className="relative group p-1">
-                <span
-                  className="bg-white/10 text-[#DEDEE3] px-4 py-2 rounded-full text-sm hover:bg-white/20 transition-all duration-300 hover:scale-105">
-                  {skill}
-                </span>
-                {profileData.testedSkills && profileData.testedSkills.some(testedSkill => testedSkill.skill.toLowerCase() === skill.toLowerCase()) ? (
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:flex flex-col 
-                    bg-[#29253b] backdrop-blur-lg text-[#DEDEE3] text-sm rounded-lg border border-[#97d8a0] p-4 shadow-lg w-56 space-y-2">
-                    <p className="font-semibold text-white">Tested Skill Info:</p>
-                    {profileData.testedSkills.filter(testedSkill => testedSkill.skill.toLowerCase() === skill.toLowerCase()).map((testedSkill, testedIndex) => (
-                      <div key={testedIndex} className="flex flex-col space-y-1">
-                        <span>Score: {testedSkill.score}</span>
-                        <span>Tested On: {formatDateToIndian(testedSkill.dateTested)}</span>
+    <div className="space-y-8">
+      {/* Current Goals Section */}
+      {hasGoals && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
+            <div className="flex items-center gap-2">
+              <Target className="text-indigo-500" size={18} />
+              <h2 className="text-lg font-semibold text-foreground">Current Goals</h2>
+            </div>
+            <span className="text-xs text-muted-foreground">{safeProfileData.currentGoals?.length || 0} entries</span>
+          </div>
+          
+          <div className="space-y-4">
+            {safeProfileData.currentGoals?.map((goal, index) => {
+              const missingSkills = calculateMissingSkills(goal);
+              
+              return (
+                <div 
+                  key={index}
+                  className="bg-background/50 rounded-xl p-4 border border-border hover:border-indigo-500/30 transition-all duration-300"
+                >
+                  <div className="flex justify-between items-start">
+                    <h3 className="font-medium text-foreground">{goal.title || 'Untitled Goal'}</h3>
+                    <div className="bg-indigo-500/10 px-2 py-1 rounded-md text-xs text-indigo-500">
+                      {formatDate(goal.targetDate)}
+                    </div>
+                  </div>
+                  
+                  <p className="text-sm text-foreground/70 mt-1">{goal.description || 'No description provided'}</p>
+                  
+                  {/* Required Skills */}
+                  {goal.requiredSkills && goal.requiredSkills.length > 0 && (
+                    <div className="mt-3">
+                      <h4 className="text-xs font-medium text-foreground/70 flex items-center mb-2">
+                        <Code size={12} className="mr-1 text-indigo-500" />
+                        Required Skills
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {goal.requiredSkills.map((skill, skillIndex) => (
+                          <span 
+                            key={skillIndex}
+                            className={`px-2 py-0.5 rounded-full text-xs ${
+                              missingSkills.includes(skill)
+                                ? 'bg-red-500/10 text-red-500'
+                                : 'bg-green-500/10 text-green-500'
+                            }`}
+                          >
+                            {skill}
+                            {missingSkills.includes(skill) ? (
+                              <AlertCircle size={10} className="inline ml-1" />
+                            ) : (
+                              <CheckCircle size={10} className="inline ml-1" />
+                            )}
+                          </span>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:flex flex-col 
-                    bg-[#29253b] backdrop-blur-lg text-[#DEDEE3] text-sm rounded-lg border border-[#97d8a0] p-4 shadow-lg w-56 space-y-2">
-                    <p className="font-semibold text-white">Tested Skill Info:</p>
-                    <span>Test Pending</span>
-                  </div>
-                )}
-              </div>
-            ))}
+                    </div>
+                  )}
+                  
+                  {/* Missing Skills Alert */}
+                  {missingSkills.length > 0 && (
+                    <div className="mt-3 bg-amber-500/10 p-2 rounded-md">
+                      <p className="text-xs text-amber-500 flex items-center">
+                        <Zap size={12} className="mr-1" />
+                        You need to acquire {missingSkills.length} more skill{missingSkills.length !== 1 ? 's' : ''} to achieve this goal
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
+      )}
 
-        {/* Badges Section */}
-        <div
-          className="bg-[#29253b] backdrop-blur-lg rounded-md shadow-lg p-8 border border-white/20 
-          transition-all duration-500 
-          hover:shadow-[0_0_25px_rgba(255,255,255,0.3)] 
-          hover:border-white/30"
-        >
-          <h3 className="text-xl font-semibold flex items-center mb-6 text-white">
-            <Award className="mr-3 text-[#45f15c]" size={24} />
-            Badges
-          </h3>
-          <div className="flex flex-wrap gap-3">
-            {profileData.badges.map((badge, index) => (
-              <div key={index} className="relative group p-1">
-                <span
-                  className="bg-white/10 text-[#DEDEE3] px-4 py-2 rounded-full text-sm hover:bg-white/20 transition-all duration-300 hover:scale-105">
-                  {badge.name}
-                </span>
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:flex flex-col 
-              bg-[#29253b] backdrop-blur-lg text-[#DEDEE3] text-sm rounded-lg border border-[#97d8a0] p-4 shadow-lg w-56 space-y-2">
-              <p className="font-semibold text-white">Required Skills:</p>
-              <div className="flex flex-wrap gap-2">
-              {badge.skills.map((skill, skillIndex) => (
-              <span
-              key={skillIndex} className="bg-white/10 text-[#DEDEE3] px-3 py-1 rounded-full text-xs hover:bg-white/20 transition-all duration-300">
-        {skill}
-      </span>
-    ))}
-  </div>
-</div>
+      {/* Skills Section */}
+      {hasSkills && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
+            <div className="flex items-center gap-2">
+              <Code className="text-indigo-500" size={18} />
+              <h2 className="text-lg font-semibold text-foreground">Skill Set</h2>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {getAllSkills().length} entries
+            </span>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {getAllSkills().map((skill, index) => {
+              // Get tested skill data if it exists
+              const testedSkill = safeProfileData.testedSkills?.find(ts => 
+                ts.skill.toLowerCase().trim() === skill.name.toLowerCase().trim()
+              );
+              const isTested = !!testedSkill;
 
-              </div>
-            ))}
+              return (
+                <div
+                  key={index}
+                  className={`bg-background/50 rounded-xl p-4 border ${
+                    isTested 
+                      ? "border-green-500/30 hover:border-green-500/50" 
+                      : "border-border hover:border-indigo-500/30"
+                  } transition-all duration-300 hover:shadow-md`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-2">
+                      {isTested ? (
+                        <div className="bg-green-500/10 p-1.5 rounded-full">
+                          <CheckCircle size={16} className="text-green-500" />
+                        </div>
+                      ) : (
+                        <div className="bg-indigo-500/10 p-1.5 rounded-full">
+                          <Code size={16} className="text-indigo-500" />
+                        </div>
+                      )}
+                      <span className={`font-medium ${isTested ? "text-green-500" : ""}`}>{skill.name}</span>
+                    </div>
+                    
+                    <div className="flex">
+                      {[...Array(3)].map((_, i) => (
+                        <Star 
+                          key={i}
+                          size={16}
+                          className={i < (skill.level || 0) ? "text-yellow-500 fill-yellow-500" : "text-foreground/20"}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {isTested ? (
+                    <div className="mt-2 bg-green-500/10 px-2 py-1 rounded-md flex items-center justify-between">
+                      <div className="flex items-center">
+                        <CheckCircle size={12} className="text-green-500 mr-1" />
+                        <span className="text-xs text-green-500">Verified ({testedSkill.score}%)</span>
+                      </div>
+                      <span className="text-xs text-green-500 font-medium capitalize">{testedSkill.level} level</span>
+                    </div>
+                  ) : (
+                    <div className="mt-2 bg-amber-500/10 px-2 py-1 rounded-md flex items-center">
+                      <AlertCircle size={12} className="text-amber-500 mr-1" />
+                      <span className="text-xs text-amber-500">Test not taken</span>
+                    </div>
+                  )}
+                  
+                  {skill.description && (
+                    <p className="text-sm text-foreground/70 mt-2">{skill.description}</p>
+                  )}
+                  
+                  {isTested && (
+                    <div className="mt-2 text-xs text-foreground/60">
+                      <div className="flex items-center">
+                        <Calendar className="w-3 h-3 mr-1" />
+                        <span>{formatDate(new Date(testedSkill.dateTested))}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Empty State - Show this if there's no data to display */}
+      {isEmpty && (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="w-16 h-16 bg-indigo-500/10 rounded-full flex items-center justify-center mb-4">
+            <Plus className="text-indigo-500 hover:scale-110 cursor-pointer" size={24} onClick={()=>navigate("/skill")} />
+          </div>
+          <h3 className="text-lg font-medium text-foreground mb-2">No Skills or Goals Available</h3>
+          <p className="text-foreground/70 mb-4 max-w-md mx-auto">
+            Your skills and goals section is currently empty. Add skills and set goals to track your progress and showcase your expertise.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
+
+Third.propTypes = {
+  profileData: PropTypes.object
+};
 
 export default Third;
